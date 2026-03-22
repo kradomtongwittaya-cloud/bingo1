@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบเกม Vocabulary Bingo - คำเป็น คำตาย</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700;800&family=Kanit:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <style>
+        :root {
+            --primary: #491970;
+            --secondary: #f0fffe;
+            --accent: #ff0080;
+            --glass: rgba(255, 255, 255, 0.2);
+            --glass-border: rgba(255, 255, 255, 0.3);
+        }
+
+        * { box-sizing: border-box; font-family: 'Sarabun', sans-serif; }
+
+        body {
+            background: linear-gradient(135deg, #491970 0%, #a239ca 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        /* Glassmorphism Card */
+        .glass-panel {
+            background: var(--glass);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        header { text-align: center; margin-bottom: 30px; }
+        header h1 { font-family: 'Kanit', sans-serif; margin: 0; font-size: 2.5rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        header p { opacity: 0.9; margin: 5px 0; }
+
+        .dev-info { font-size: 0.9rem; border-top: 1px solid var(--glass-border); padding-top: 10px; margin-top: 10px; }
+
+        /* Tabs Navigation */
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; justify-content: center; }
+        .tab-btn {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .tab-btn.active { background: #fff; color: var(--primary); font-weight: bold; }
+
+        /* Vocabulary Section */
+        textarea {
+            width: 100%;
+            height: 120px;
+            border-radius: 12px;
+            padding: 15px;
+            border: none;
+            margin-bottom: 10px;
+            background: rgba(255,255,255,0.9);
+            color: #333;
+            font-size: 1rem;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s, background 0.2s;
+        }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-success { background: #00d2ff; color: white; }
+        .btn:active { transform: scale(0.95); }
+
+        .word-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 10px;
+            background: rgba(0,0,0,0.1);
+            border-radius: 10px;
+        }
+        .word-badge {
+            background: white;
+            color: var(--primary);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .word-badge span { cursor: pointer; color: red; font-weight: bold; }
+
+        /* Bingo Grid Area */
+        .bingo-controls { display: flex; gap: 15px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+        
+        .bingo-board {
+            display: grid;
+            gap: 10px;
+            margin: 0 auto;
+            max-width: 500px;
+        }
+        .bingo-cell {
+            aspect-ratio: 1/1;
+            background: white;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            padding: 5px;
+            font-size: clamp(12px, 3vw, 18px);
+            transition: 0.3s;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+        }
+        .bingo-cell.marked {
+            background: var(--accent);
+            color: white;
+            transform: scale(0.95);
+        }
+        .bingo-cell.free {
+            background: linear-gradient(45deg, #ff0080, #7928ca);
+            color: white;
+        }
+
+        /* Randomizer Section */
+        .random-display {
+            font-size: 3rem;
+            text-align: center;
+            margin: 20px 0;
+            min-height: 80px;
+            font-weight: 800;
+            color: #00ffcc;
+            text-shadow: 0 0 20px rgba(0, 255, 204, 0.5);
+        }
+        .history-list {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding: 10px 0;
+        }
+
+        /* Toast Notification */
+        #toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #333;
+            color: white;
+            padding: 12px 25px;
+            border-radius: 30px;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            header h1 { font-size: 1.8rem; }
+            .tabs { flex-direction: column; }
+        }
+
+        /* Print Hidden Area */
+        #pdfRenderArea {
+            position: fixed;
+            left: -9999px;
+            top: 0;
+            width: 794px;
+            background: white;
+            z-index: -1;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header class="glass-panel">
+        <h1>Vocabulary Bingo</h1>
+        <h3>เรื่อง: คำเป็น คำตาย (วิชาภาษาไทย)</h3>
+        <div class="dev-info">
+            ผู้ออกแบบ: <strong>นนทพัทธ์ หิรัญเรือง</strong> | โรงเรียนกระดุมทองวิทยา
+        </div>
+    </header>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('manage')">จัดการคำศัพท์</button>
+        <button class="tab-btn" onclick="switchTab('game')">เล่นเกม / สุ่มคำ</button>
+        <button class="tab-btn" onclick="switchTab('print')">พิมพ์ใบกิจกรรม</button>
+    </div>
+
+    <div id="view-manage" class="tab-content">
+        <div class="glass-panel">
+            <h3>เพิ่มคำศัพท์</h3>
+            <p style="font-size: 0.85rem;">ปุ่ม <b>Enter</b> = เพิ่มทั้งหมด | <b>Shift + Enter</b> = ขึ้นบรรทัดใหม่</p>
+            <textarea id="wordInput" placeholder="ใส่คำศัพท์ที่นี่...&#10;นำเข้าหลายคำ (Shift+Enter = ขึ้นบรรทัด)"></textarea>
+            <button class="btn btn-primary" onclick="addWords()">เพิ่มคำศัพท์</button>
+            <button class="btn btn-success" onclick="clearWords()" style="background: #ff4757; margin-left: 5px;">ล้างทั้งหมด</button>
+            
+            <div class="word-list" id="wordDisplay"></div>
+        </div>
+    </div>
+
+    <div id="view-game" class="tab-content" style="display:none;">
+        <div class="glass-panel" style="text-align: center;">
+            <div class="random-display" id="currentWord">-</div>
+            <button class="btn btn-primary" onclick="drawWord()" style="padding: 15px 40px; font-size: 1.2rem;">สุ่มคำศัพท์</button>
+            <p>คำที่ออกแล้ว:</p>
+            <div class="history-list" id="historyList"></div>
+        </div>
+
+        <div class="glass-panel">
+            <div class="bingo-controls">
+                <select id="gridSize" class="btn" onchange="initBingoBoard()">
+                    <option value="3">ขนาด 3x3</option>
+                    <option value="4" selected>ขนาด 4x4</option>
+                </select>
+                <button class="btn btn-success" onclick="initBingoBoard()">สุ่มกระดานใหม่</button>
+            </div>
+            <div id="bingoBoard" class="bingo-board"></div>
+        </div>
+    </div>
+
+    <div id="view-print" class="tab-content" style="display:none;">
+        <div class="glass-panel" style="text-align: center;">
+            <h3>ดาวน์โหลดไฟล์ PDF สำหรับพิมพ์</h3>
+            <p>ระบบจะสร้างใบ Bingo ที่แตกต่างกันให้อัตโนมัติ</p>
+            <div style="margin: 20px 0;">
+                จำนวนใบที่ต้องการ: <input type="number" id="printCount" value="5" min="1" max="50" style="width: 60px; padding: 5px;">
+            </div>
+            <button class="btn btn-primary" onclick="generatePDF()">ดาวน์โหลด PDF (A4)</button>
+        </div>
+    </div>
+</div>
+
+<div id="pdfRenderArea"></div>
+
+<div id="toast"></div>
+
+<script>
+    let words = JSON.parse(localStorage.getItem('bingo_words')) || ["นกยูง", "กางเกง", "แมว", "สาว", "โคม", "ดาว", "เรียน", "เตรียม", "ปาก", "จิก", "เด็ก", "ตาย", "บท", "บาท", "เลข", "เมฆ"];
+    let history = [];
+    let currentGridSize = 4;
+
+    // --- Core Functions ---
+    
+    function saveWords() {
+        localStorage.setItem('bingo_words', JSON.stringify(words));
+        renderWordList();
+    }
+
+    function renderWordList() {
+        const container = document.getElementById('wordDisplay');
+        container.innerHTML = words.map((w, index) => `
+            <div class="word-badge">
+                ${w} <span onclick="deleteWord(${index})">&times;</span>
+            </div>
+        `).join('');
+    }
+
+    // Input Logic (Shift+Enter vs Enter)
+    document.getElementById('wordInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            addWords();
+        }
+    });
+
+    function addWords() {
+        const input = document.getElementById('wordInput');
+        const rawLines = input.value.split('\n');
+        let addedCount = 0;
+
+        rawLines.forEach(line => {
+            const word = line.trim();
+            if (word && !words.includes(word)) {
+                words.push(word);
+                addedCount++;
+            }
+        });
+
+        if (addedCount > 0) {
+            saveWords();
+            showToast(`เพิ่ม ${addedCount} คำเรียบร้อยแล้ว`);
+            input.value = '';
+        }
+    }
+
+    function deleteWord(index) {
+        words.splice(index, 1);
+        saveWords();
+    }
+
+    function clearWords() {
+        if(confirm('ล้างคำศัพท์ทั้งหมดใช่หรือไม่?')) {
+            words = [];
+            saveWords();
+        }
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.innerText = msg;
+        t.style.display = 'block';
+        setTimeout(() => t.style.display = 'none', 3000);
+    }
+
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('view-' + tab).style.display = 'block';
+        event.currentTarget.classList.add('active');
+        if(tab === 'game') initBingoBoard();
+    }
+
+    // --- Game Logic ---
+
+    function drawWord() {
+        const available = words.filter(w => !history.includes(w));
+        if (available.length === 0) return alert('สุ่มครบทุกคำแล้ว!');
+        
+        const picked = available[Math.floor(Math.random() * available.length)];
+        history.push(picked);
+        
+        document.getElementById('currentWord').innerText = picked;
+        const hList = document.getElementById('historyList');
+        hList.innerHTML = history.map(w => `<div class="word-badge">${w}</div>`).join('') + hList.innerHTML;
+    }
+
+    function initBingoBoard() {
+        const size = parseInt(document.getElementById('gridSize').value);
+        currentGridSize = size;
+        const board = document.getElementById('bingoBoard');
+        board.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+        
+        const shuffled = [...words].sort(() => 0.5 - Math.random());
+        const displayWords = shuffled.slice(0, size * size);
+        
+        // Ensure middle is FREE if odd
+        let html = '';
+        for(let i=0; i < size*size; i++) {
+            const isFree = (size % 2 !== 0 && i === Math.floor((size*size)/2));
+            const text = isFree ? 'FREE' : (displayWords[i] || '---');
+            html += `<div class="bingo-cell ${isFree ? 'free marked' : ''}" onclick="this.classList.toggle('marked'); checkBingo();">${text}</div>`;
+        }
+        board.innerHTML = html;
+    }
+
+    function checkBingo() {
+        // Logic ตรวจสอบแถว/หลัก/ทะแยง สามารถเพิ่มได้ที่นี่
+        // เพื่อความเรียบง่ายในเวอร์ชันนี้ จะเน้นที่การเล่นร่วมกับครู
+    }
+
+    // --- PDF Generation Logic ---
+
+    function buildCardHTML(cardData) {
+        const size = cardData.size;
+        const cellSize = size == 3 ? '210px' : '160px';
+        const fontSize = size == 3 ? '24px' : '20px';
+        
+        let tableRows = '';
+        for(let i=0; i<size; i++) {
+            tableRows += '<tr>';
+            for(let j=0; j<size; j++) {
+                const word = cardData.words[i * size + j];
+                const isFree = (size % 2 !== 0 && (i * size + j) === Math.floor((size*size)/2));
+                
+                const style = isFree 
+                    ? `border:2px solid #491970; text-align:center; vertical-align:middle; height:${cellSize}; width:${cellSize}; font-size:${fontSize}; font-weight:900; background:linear-gradient(45deg, #491970, #a239ca); color:white;`
+                    : `border:2px solid #491970; text-align:center; vertical-align:middle; height:${cellSize}; width:${cellSize}; font-size:${fontSize}; color:#491970; background:white;`;
+                
+                tableRows += `<td style="${style}">${isFree ? 'FREE' : word}</td>`;
+            }
+            tableRows += '</tr>';
+        }
+
+        return `
+            <div style="width:794px; min-height:1123px; background:white; padding:40px; box-sizing:border-box; font-family:'Sarabun'; position:relative;">
+                <div style="text-align:center; border-bottom:3px solid #491970; margin-bottom:30px; padding-bottom:10px;">
+                    <h1 style="margin:0; color:#491970; font-size:32px;">Vocabulary Bingo: คำเป็น คำตาย</h1>
+                    <p style="margin:5px 0; font-size:18px;">โรงเรียนกระดุมทองวิทยา | ครูนนทพัทธ์ หิรัญเรือง</p>
+                </div>
+                <table style="border-collapse:collapse; width:100%; margin-top:20px;">
+                    ${tableRows}
+                </table>
+                <div style="margin-top:40px; border:2px dashed #ccc; padding:20px; border-radius:10px;">
+                    <p style="margin:0; font-size:14px; color:#666;">กติกา: เมื่อครูสุ่มคำศัพท์ ให้กากบาทคำนั้นในตาราง ใครเรียงครบแถว แนวตั้ง หรือแนวทแยงก่อนเป็นผู้ชนะ!</p>
+                </div>
+                <div style="position:absolute; bottom:40px; right:40px; font-size:12px; color:#aaa;">
+                    Generated by Bingo System v1.0
+                </div>
+            </div>
+        `;
+    }
+
+    async function generatePDF() {
+        if (words.length < currentGridSize * currentGridSize) {
+            return alert(`ต้องการคำศัพท์อย่างน้อย ${currentGridSize * currentGridSize} คำเพื่อสร้างตาราง`);
+        }
+
+        const { jsPDF } = window.jspdf;
+        const count = parseInt(document.getElementById('printCount').value);
+        const renderArea = document.getElementById('pdfRenderArea');
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        
+        showToast("กำลังสร้างไฟล์ PDF โปรดรอสักครู่...");
+
+        for (let i = 0; i < count; i++) {
+            // Prepare unique data for each card
+            const shuffled = [...words].sort(() => 0.5 - Math.random());
+            const cardData = {
+                size: currentGridSize,
+                words: shuffled.slice(0, currentGridSize * currentGridSize)
+            };
+
+            renderArea.innerHTML = buildCardHTML(cardData);
+            
+            // Wait for DOM to render
+            await new Promise(r => setTimeout(r, 100));
+
+            const canvas = await html2canvas(renderArea.firstElementChild, {
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#ffffff',
+                logging: false,
+                width: 794,
+                windowWidth: 794
+            });
+
+            if (i > 0) pdf.addPage();
+            const img = canvas.toDataURL('image/jpeg', 0.92);
+            const ratio = canvas.height / canvas.width;
+            const pdfW = 210;
+            const pdfH = Math.min(297, pdfW * ratio);
+            
+            pdf.addImage(img, 'JPEG', 0, (297 - pdfH) / 2, pdfW, pdfH);
+        }
+
+        pdf.save(`Bingo_Thai_Kaduamthong_${new Date().getTime()}.pdf`);
+        showToast("ดาวน์โหลดสำเร็จ!");
+    }
+
+    // Init List on Load
+    renderWordList();
+</script>
+
+</body>
+</html>
